@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CRM Pro</title>
+  <script>
+    // SPA fallback do GitHub Pages.
+    // O app usa roteamento por HASH (#/rota), então basta voltar para o index
+    // do projeto, mantendo o subpath correto (ex.: /CRMteste/) e o hash.
+    (function () {
+      var l = window.location;
+      var origin = l.protocol + '//' + l.host;
+      // Mantém o primeiro segmento (nome do repo no GitHub Pages, ex.: "CRMteste")
+      var seg = l.pathname.split('/').filter(Boolean);
+      var base = seg.length ? '/' + seg[0] + '/' : '/';
+      var target = origin + base + 'index.html' + (l.hash || '');
+      // Evita auto-redirecionar para si mesmo (proteção contra loop)
+      if (l.href !== target) l.replace(target);
+    })();
+  </script>
+</head>
+<body>
+  <style>
+    body { margin:0; background:#0a0f1e; color:#94a3b8; font-family:system-ui; display:flex; align-items:center; justify-content:center; height:100vh; }
+    .loader { text-align:center; }
+    .spinner { width:40px; height:40px; border:3px solid #1e293b; border-top-color:#6366f1; border-radius:50%; animation:spin 0.8s linear infinite; margin:0 auto 16px; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+  </style>
+  <div class="loader">
+    <div class="spinner"></div>
+    <p>Redirecionando...</p>
+  </div>
+</body>
+</html>

@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+
+  <!-- Content Security Policy -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.openai.com https://unpkg.com https://cdn.jsdelivr.net; worker-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'">
+
+  <title>CRM Pro — Dashboard</title>
+  <meta name="description" content="Painel de controle do CRM Pro">
+
+  <!-- PWA -->
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#6366f1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="apple-touch-icon" href="./frontend/assets/icons/icon-192x192.png">
+
+  <!-- Preconnect -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="./frontend/css/variables.css">
+  <link rel="stylesheet" href="./frontend/css/base.css">
+  <link rel="stylesheet" href="./frontend/css/components.css">
+  <link rel="stylesheet" href="./frontend/css/layout.css">
+  <link rel="stylesheet" href="./frontend/css/animations.css">
+
+  <!-- External Libraries (versões fixadas + SRI) -->
+  <script src="https://unpkg.com/lucide@1.22.0/dist/umd/lucide.min.js"
+          integrity="sha384-TnesABAZXAtQhqlVENNq1yFPN48F7YMII/Ksrk9CdlFRnT1mQnD+o5BbHXh1P4ne"
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"
+          integrity="sha384-e6nUZLBkQ86NJ6TVVKAeSaK8jWa3NhkYWZFomE39AvDbQWeie9PlQqM3pmYW5d1g"
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <!-- FullCalendar v6: o bundle global JS injeta o próprio CSS (não há arquivo .css separado) -->
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"
+          integrity="sha384-WfE/vOHqht3KDj6FvpwQUf3UxEPUHoGJ3w1yZ8rhpLWnVigt8HjXL2zXqtcfS7mf"
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.108.2"
+          integrity="sha384-JWEyvHh+lRf0sN/WWY+QTQwX+CyWqmNg4tkc8GQzAMEtR2wGNrCJlvnu1lHD1kDm"
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+  <style>
+    /* ===== DASHBOARD WIDGETS ===== */
+    .widget { position: relative; }
+    .widget-toolbar {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      opacity: 0;
+      transition: opacity var(--transition-fast);
+    }
+    .widget:hover .widget-toolbar { opacity: 1; }
+
+    .chart-container { position: relative; }
+
+    /* ===== AI CHAT ===== */
+    .ai-panel {
+      position: fixed;
+      right: var(--space-6);
+      bottom: var(--space-6);
+      width: 400px;
+      max-height: 600px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-xl);
+      display: flex;
+      flex-direction: column;
+      z-index: var(--z-modal);
+      transform: scale(0.9) translateY(20px);
+      opacity: 0;
+      pointer-events: none;
+      transition: all var(--transition-normal);
+    }
+    .ai-panel.open {
+      transform: scale(1) translateY(0);
+      opacity: 1;
+      pointer-events: all;
+    }
+    .ai-panel-header {
+      padding: var(--space-4);
+      border-bottom: 1px solid var(--border-default);
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+    .ai-avatar {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, var(--color-primary-500), var(--color-accent-500));
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .ai-avatar svg { width: 18px; height: 18px; color: white; }
+    .ai-panel-title { font-size: var(--text-sm); font-weight: var(--font-semibold); color: var(--text-primary); }
+    .ai-panel-sub   { font-size: var(--text-xs); color: var(--text-tertiary); }
+
+    .ai-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--space-4);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-3);
+      min-height: 200px;
+      max-height: 380px;
+    }
+    .ai-message { display: flex; gap: var(--space-2); }
+    .ai-message.user { flex-direction: row-reverse; }
+    .ai-bubble {
+      max-width: 80%;
+      padding: var(--space-3) var(--space-4);
+      border-radius: var(--radius-lg);
+      font-size: var(--text-sm);
+      line-height: 1.5;
+    }
+    .ai-message.assistant .ai-bubble {
+      background: var(--bg-overlay);
+      color: var(--text-primary);
+      border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) var(--radius-sm);
+    }
+    .ai-message.user .ai-bubble {
+      background: var(--color-primary-500);
+      color: white;
+      border-radius: var(--radius-lg) var(--radius-lg) var(--radius-sm) var(--radius-lg);
+    }
+
+    .ai-input-area {
+      padding: var(--space-3) var(--space-4);
+      border-top: 1px solid var(--border-default);
+    }
+    .ai-input-wrap {
+      display: flex;
+      align-items: flex-end;
+      gap: var(--space-2);
+      background: var(--bg-input);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-lg);
+      padding: var(--space-2) var(--space-3);
+    }
+    .ai-input-wrap:focus-within { border-color: var(--border-focus); }
+    .ai-textarea {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      resize: none;
+      font-size: var(--text-sm);
+      color: var(--text-primary);
+      max-height: 100px;
+      min-height: 24px;
+      font-family: inherit;
+    }
+    .ai-fab {
+      position: fixed;
+      right: var(--space-6);
+      bottom: var(--space-6);
+      width: 52px; height: 52px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--color-primary-500), var(--color-accent-500));
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: var(--shadow-lg), var(--shadow-glow);
+      transition: all var(--transition-fast);
+      z-index: calc(var(--z-modal) - 1);
+      border: none;
+    }
+    .ai-fab:hover { transform: scale(1.1); }
+    .ai-fab svg { width: 24px; height: 24px; }
+
+    /* Quick actions */
+    .ai-quick-actions {
+      padding: 0 var(--space-4) var(--space-3);
+      display: flex;
+      gap: var(--space-2);
+      flex-wrap: wrap;
+    }
+    .ai-quick-btn {
+      padding: 4px 10px;
+      background: var(--bg-overlay);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-full);
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      white-space: nowrap;
+    }
+    .ai-quick-btn:hover { border-color: var(--color-primary-500); color: var(--color-primary-400); }
+
+    /* ===== NOTIFICATION PANEL ===== */
+    .notif-panel {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      width: 360px;
+      max-height: 480px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-xl);
+      overflow: hidden;
+      z-index: var(--z-dropdown);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-8px);
+      transition: all var(--transition-fast);
+    }
+    .notif-panel.open {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+    .notif-item {
+      display: flex;
+      gap: var(--space-3);
+      padding: var(--space-3) var(--space-4);
+      cursor: pointer;
+      transition: background var(--transition-fast);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .notif-item:hover { background: var(--bg-hover); }
+    .notif-item.unread { background: rgba(99,102,241,0.05); }
+    .notif-item-icon {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .notif-item-title { font-size: var(--text-sm); font-weight: var(--font-medium); color: var(--text-primary); margin-bottom: 2px; }
+    .notif-item-msg   { font-size: var(--text-xs); color: var(--text-secondary); line-height: 1.4; }
+    .notif-item-time  { font-size: var(--text-xs); color: var(--text-tertiary); margin-top: 4px; }
+    .notif-dot        { width: 8px; height: 8px; border-radius: 50%; background: var(--color-primary-500); flex-shrink: 0; margin-top: 6px; }
+
+    /* ===== GLOBAL SEARCH RESULTS ===== */
+    .global-search-panel {
+      position: fixed;
+      top: var(--header-height);
+      left: 50%; transform: translateX(-50%);
+      width: 600px;
+      max-height: 500px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-xl);
+      z-index: calc(var(--z-modal) + 1);
+      overflow: hidden;
+      display: none;
+    }
+    .global-search-panel.open { display: flex; flex-direction: column; animation: slideDown 0.2s ease; }
+
+    /* ===== FORMS (Detail views) ===== */
+    .detail-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+    .detail-form-grid .full-width { grid-column: 1/-1; }
+
+    /* Drag placeholder */
+    .drag-placeholder {
+      border: 2px dashed var(--color-primary-500);
+      border-radius: var(--radius-lg);
+      background: rgba(99,102,241,0.05);
+      min-height: 80px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Page loader -->
+<div class="page-loader" id="page-loader">
+  <div class="page-loader-logo">
+    <i data-lucide="zap" style="width:28px;height:28px;color:white"></i>
+  </div>
+  <div class="spinner"></div>
+</div>
+
+<!-- Main App -->
+<div id="app" style="display:none">
+
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="sidebar" id="sidebar">
+    <!-- Logo -->
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon">
+        <i data-lucide="zap"></i>
+      </div>
+      <span class="sidebar-logo-text" id="org-name">CRM Pro</span>
+    </div>
+
+    <!-- Search -->
+    <div class="sidebar-search">
+      <button class="sidebar-search-btn" onclick="CRM.openSearch()">
+        <i data-lucide="search"></i>
+        <span>Buscar...</span>
+        <kbd class="sidebar-search-shortcut">⌘K</kbd>
+      </button>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="sidebar-nav" role="navigation" aria-label="Menu principal">
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">Principal</div>
+
+        <a class="nav-item active" href="#/dashboard" onclick="CRM.navigate('/dashboard')">
+          <div class="nav-icon"><i data-lucide="layout-dashboard"></i></div>
+          <span class="nav-label">Dashboard</span>
+        </a>
+
+        <a class="nav-item" href="#/leads" onclick="CRM.navigate('/leads')">
+          <div class="nav-icon"><i data-lucide="users"></i></div>
+          <span class="nav-label">Leads</span>
+          <span class="nav-badge" id="badge-leads" style="display:none">0</span>
+        </a>
+
+        <a class="nav-item" href="#/pipeline" onclick="CRM.navigate('/pipeline')">
+          <div class="nav-icon"><i data-lucide="git-merge"></i></div>
+          <span class="nav-label">Pipeline</span>
+        </a>
+
+        <a class="nav-item" href="#/contacts" onclick="CRM.navigate('/contacts')">
+          <div class="nav-icon"><i data-lucide="user-circle"></i></div>
+          <span class="nav-label">Contatos</span>
+        </a>
+
+        <a class="nav-item" href="#/companies" onclick="CRM.navigate('/companies')">
+          <div class="nav-icon"><i data-lucide="building-2"></i></div>
+          <span class="nav-label">Empresas</span>
+        </a>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">Trabalho</div>
+
+        <a class="nav-item" href="#/tasks" onclick="CRM.navigate('/tasks')">
+          <div class="nav-icon"><i data-lucide="check-square"></i></div>
+          <span class="nav-label">Tarefas</span>
+          <span class="nav-badge" id="badge-tasks" style="display:none">0</span>
+        </a>
+
+        <a class="nav-item" href="#/calendar" onclick="CRM.navigate('/calendar')">
+          <div class="nav-icon"><i data-lucide="calendar"></i></div>
+          <span class="nav-label">Calendário</span>
+        </a>
+
+        <a class="nav-item" href="#/activities" onclick="CRM.navigate('/activities')">
+          <div class="nav-icon"><i data-lucide="activity"></i></div>
+          <span class="nav-label">Atividades</span>
+        </a>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">Análise</div>
+
+        <a class="nav-item" href="#/reports" onclick="CRM.navigate('/reports')">
+          <div class="nav-icon"><i data-lucide="bar-chart-2"></i></div>
+          <span class="nav-label">Relatórios</span>
+        </a>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">Plataforma</div>
+
+        <a class="nav-item" href="#/automations" onclick="CRM.navigate('/automations')">
+          <div class="nav-icon"><i data-lucide="zap"></i></div>
+          <span class="nav-label">Automações</span>
+        </a>
+
+        <a class="nav-item" href="#/integrations" onclick="CRM.navigate('/integrations')">
+          <div class="nav-icon"><i data-lucide="plug"></i></div>
+          <span class="nav-label">Integrações</span>
+        </a>
+
+        <a class="nav-item" href="#/settings" onclick="CRM.navigate('/settings')">
+          <div class="nav-icon"><i data-lucide="settings"></i></div>
+          <span class="nav-label">Configurações</span>
+        </a>
+      </div>
+    </nav>
+
+    <!-- User -->
+    <div class="sidebar-footer">
+      <div class="sidebar-user" id="sidebar-user-btn" onclick="CRM.toggleUserMenu()">
+        <div class="avatar avatar-sm" id="sidebar-avatar">U</div>
+        <div class="sidebar-user-info">
+          <div class="sidebar-user-name" id="sidebar-user-name">Carregando...</div>
+          <div class="sidebar-user-role" id="sidebar-user-role">Membro</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Collapse button -->
+    <button class="sidebar-collapse-btn" onclick="CRM.toggleSidebar()" aria-label="Recolher menu">
+      <i data-lucide="chevron-left"></i>
+    </button>
+  </aside>
+
+  <!-- ===== MAIN AREA ===== -->
+  <main class="main-area">
+
+    <!-- Header -->
+    <header class="header" role="banner">
+      <!-- Mobile menu btn -->
+      <button class="btn btn-ghost btn-icon" id="mobile-menu-btn" onclick="CRM.toggleMobileMenu()" style="display:none" aria-label="Menu">
+        <i data-lucide="menu" style="width:20px;height:20px"></i>
+      </button>
+
+      <!-- Breadcrumb -->
+      <div class="header-breadcrumb" id="breadcrumb">
+        <span>CRM Pro</span>
+        <span class="breadcrumb-sep">/</span>
+        <span class="breadcrumb-item" id="breadcrumb-page">Dashboard</span>
+      </div>
+
+      <!-- Header search -->
+      <button class="header-search" onclick="CRM.openSearch()" aria-label="Buscar">
+        <i data-lucide="search" style="width:16px;height:16px"></i>
+        <span>Buscar em tudo...</span>
+        <kbd>⌘K</kbd>
+      </button>
+
+      <!-- Actions -->
+      <div class="header-actions">
+        <!-- New button -->
+        <div class="dropdown">
+          <button class="btn btn-primary btn-sm" onclick="CRM.toggleNewMenu(this)" aria-label="Criar novo">
+            <i data-lucide="plus" style="width:16px;height:16px"></i>
+            Novo
+            <i data-lucide="chevron-down" style="width:14px;height:14px"></i>
+          </button>
+          <div class="dropdown-menu" id="new-menu">
+            <div class="dropdown-item" onclick="Leads.openCreate()">
+              <i data-lucide="users" style="width:16px;height:16px"></i> Novo Lead
+            </div>
+            <div class="dropdown-item" onclick="Contacts.openCreate()">
+              <i data-lucide="user-plus" style="width:16px;height:16px"></i> Novo Contato
+            </div>
+            <div class="dropdown-item" onclick="Companies.openCreate()">
+              <i data-lucide="building-2" style="width:16px;height:16px"></i> Nova Empresa
+            </div>
+            <div class="dropdown-item" onclick="Tasks.openCreate()">
+              <i data-lucide="check-square" style="width:16px;height:16px"></i> Nova Tarefa
+            </div>
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-item" onclick="Pipeline.openCreate()">
+              <i data-lucide="git-merge" style="width:16px;height:16px"></i> Nova Oportunidade
+            </div>
+          </div>
+        </div>
+
+        <!-- Notifications -->
+        <div class="dropdown notif-btn" id="notif-dropdown">
+          <button class="btn btn-ghost btn-icon" onclick="CRM.toggleNotifications()" aria-label="Notificações">
+            <i data-lucide="bell" style="width:18px;height:18px"></i>
+            <span class="notif-dot" id="notif-dot" style="display:none"></span>
+          </button>
+          <div class="notif-panel" id="notif-panel">
+            <div class="card-header" style="padding:var(--space-4)">
+              <span style="font-weight:var(--font-semibold)">Notificações</span>
+              <button class="btn btn-ghost btn-xs" onclick="Notifications.markAllRead()">Marcar como lidas</button>
+            </div>
+            <div id="notif-list" style="overflow-y:auto;max-height:380px">
+              <div class="empty-state" style="padding:var(--space-8)">
+                <div class="empty-state-icon"><i data-lucide="bell-off"></i></div>
+                <p style="font-size:var(--text-sm);color:var(--text-secondary)">Sem notificações</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Theme toggle -->
+        <button class="btn btn-ghost btn-icon" onclick="CRM.toggleTheme()" aria-label="Alternar tema" id="theme-btn">
+          <i data-lucide="moon" style="width:18px;height:18px"></i>
+        </button>
+
+        <!-- User avatar -->
+        <div class="dropdown">
+          <div class="avatar avatar-sm" id="header-avatar" onclick="CRM.toggleUserMenu()" style="cursor:pointer">U</div>
+          <div class="dropdown-menu" id="user-menu">
+            <div style="padding:var(--space-3) var(--space-4);border-bottom:1px solid var(--border-default)">
+              <div style="font-size:var(--text-sm);font-weight:var(--font-medium)" id="menu-user-name">-</div>
+              <div style="font-size:var(--text-xs);color:var(--text-tertiary)" id="menu-user-email">-</div>
+            </div>
+            <div class="dropdown-item" onclick="CRM.navigate('/settings')">
+              <i data-lucide="settings"></i> Configurações
+            </div>
+            <div class="dropdown-item" onclick="CRM.navigate('/settings/profile')">
+              <i data-lucide="user"></i> Meu perfil
+            </div>
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-item danger" onclick="CRM.signOut()">
+              <i data-lucide="log-out"></i> Sair
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Page Content -->
+    <div class="page-content" id="page-content" role="main">
+
+      <!-- ===== DASHBOARD PAGE ===== -->
+      <div class="page active" id="page-dashboard">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title" id="dashboard-greeting">Bom dia! 👋</h1>
+            <p class="page-subtitle" id="dashboard-date">Carregando...</p>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-secondary btn-sm" onclick="Dashboard.refresh()">
+              <i data-lucide="refresh-cw" style="width:14px;height:14px"></i> Atualizar
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="Dashboard.customize()">
+              <i data-lucide="layout-grid" style="width:14px;height:14px"></i> Personalizar
+            </button>
+          </div>
+        </div>
+
+        <div class="page-body stagger" id="dashboard-body">
+          <!-- KPI Cards -->
+          <div class="grid-kpi grid" id="kpi-grid">
+            <div class="skeleton" style="height:100px"></div>
+            <div class="skeleton" style="height:100px"></div>
+            <div class="skeleton" style="height:100px"></div>
+            <div class="skeleton" style="height:100px"></div>
+          </div>
+
+          <!-- Charts row -->
+          <div class="grid grid-2" style="margin-top:var(--space-4)">
+            <div class="card">
+              <div class="card-header">
+                <span style="font-weight:var(--font-semibold)">Receita Mensal</span>
+                <div class="widget-toolbar">
+                  <button class="btn btn-ghost btn-xs" onclick="Dashboard.exportChart('revenue')"><i data-lucide="download" style="width:14px;height:14px"></i></button>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="chart-container" style="height:220px"><canvas id="chart-revenue"></canvas></div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <span style="font-weight:var(--font-semibold)">Pipeline por Etapa</span>
+              </div>
+              <div class="card-body">
+                <div class="chart-container" style="height:220px"><canvas id="chart-funnel"></canvas></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tasks + Activities row -->
+          <div class="grid grid-2" style="margin-top:var(--space-4)">
+            <div class="card">
+              <div class="card-header">
+                <span style="font-weight:var(--font-semibold)">Tarefas Hoje</span>
+                <button class="btn btn-ghost btn-xs" onclick="CRM.navigate('/tasks')">Ver todas</button>
+              </div>
+              <div id="dashboard-tasks" class="card-body" style="padding:0">
+                <div class="shimmer-loading" style="height:200px"></div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <span style="font-weight:var(--font-semibold)">Atividades Recentes</span>
+                <button class="btn btn-ghost btn-xs" onclick="CRM.navigate('/activities')">Ver todas</button>
+              </div>
+              <div id="dashboard-activities" class="card-body" style="padding:0">
+                <div class="shimmer-loading" style="height:200px"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Top leads -->
+          <div class="card" style="margin-top:var(--space-4)">
+            <div class="card-header">
+              <span style="font-weight:var(--font-semibold)">Leads Quentes</span>
+              <button class="btn btn-ghost btn-xs" onclick="CRM.navigate('/leads')">Ver todos</button>
+            </div>
+            <div id="dashboard-hot-leads">
+              <div class="shimmer-loading" style="height:160px"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== LEADS PAGE ===== -->
+      <div class="page" id="page-leads">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Leads</h1>
+            <p class="page-subtitle" id="leads-count">Carregando...</p>
+          </div>
+          <div class="page-actions">
+            <div class="search-bar" style="width:260px">
+              <span class="search-icon"><i data-lucide="search"></i></span>
+              <input type="search" class="search-input" placeholder="Buscar leads..." id="leads-search" oninput="Leads.search(this.value)">
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="Leads.toggleFilters()">
+              <i data-lucide="filter" style="width:14px;height:14px"></i> Filtros
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="Leads.toggleView()">
+              <i data-lucide="layout-grid" style="width:14px;height:14px"></i>
+            </button>
+            <button class="btn btn-primary btn-sm" onclick="Leads.openCreate()">
+              <i data-lucide="plus" style="width:14px;height:14px"></i> Novo Lead
+            </button>
+          </div>
+        </div>
+
+        <!-- Filters -->
+        <div id="leads-filter-bar" style="padding:0 var(--space-6);display:none">
+          <div class="filter-bar" style="padding:var(--space-3) 0;border-bottom:1px solid var(--border-default)">
+            <span style="font-size:var(--text-xs);color:var(--text-tertiary)">Filtros:</span>
+            <div class="filter-chip active" onclick="Leads.filter('all')">Todos</div>
+            <div class="filter-chip" onclick="Leads.filter('new')">Novos</div>
+            <div class="filter-chip" onclick="Leads.filter('hot')">🔥 Quentes</div>
+            <div class="filter-chip" onclick="Leads.filter('qualified')">Qualificados</div>
+            <div class="filter-chip" onclick="Leads.filter('mine')">Meus leads</div>
+            <select class="input" style="width:160px;padding:4px 10px;height:28px;font-size:var(--text-xs)" onchange="Leads.filterBySource(this.value)">
+              <option value="">Qualquer fonte</option>
+              <option value="google">Google</option>
+              <option value="linkedin">LinkedIn</option>
+              <option value="referral">Indicação</option>
+              <option value="event">Evento</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="page-body page-body-flush" style="padding-top:var(--space-4)">
+          <div class="data-table-wrap" style="padding:0 var(--space-6)">
+            <table class="data-table" id="leads-table">
+              <thead>
+                <tr>
+                  <th style="width:40px"><input type="checkbox" id="leads-select-all" onchange="Leads.selectAll(this)"></th>
+                  <th onclick="Leads.sort('title')">Lead <span class="sort-icon"><i data-lucide="chevrons-up-down" style="width:12px;height:12px"></i></span></th>
+                  <th onclick="Leads.sort('contact')">Contato</th>
+                  <th onclick="Leads.sort('company')">Empresa</th>
+                  <th onclick="Leads.sort('status')">Status</th>
+                  <th onclick="Leads.sort('temperature')">Temp.</th>
+                  <th onclick="Leads.sort('score')">Score</th>
+                  <th onclick="Leads.sort('value')">Valor</th>
+                  <th onclick="Leads.sort('created_at')">Criado em</th>
+                  <th style="width:80px">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="leads-tbody">
+                <tr><td colspan="10"><div class="shimmer-loading" style="height:200px;margin:var(--space-4)"></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Pagination -->
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-4) var(--space-6)">
+            <span id="leads-pagination-info" style="font-size:var(--text-sm);color:var(--text-secondary)"></span>
+            <div class="pagination" id="leads-pagination"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== PIPELINE PAGE ===== -->
+      <div class="page" id="page-pipeline">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Pipeline</h1>
+            <p class="page-subtitle" id="pipeline-subtitle">Carregando...</p>
+          </div>
+          <div class="page-actions">
+            <select class="input btn-sm" style="width:200px" id="funnel-select" onchange="Pipeline.loadFunnel(this.value)">
+              <option>Carregando...</option>
+            </select>
+            <button class="btn btn-secondary btn-sm" onclick="Pipeline.manageStages()">
+              <i data-lucide="settings" style="width:14px;height:14px"></i> Etapas
+            </button>
+            <button class="btn btn-primary btn-sm" onclick="Pipeline.openCreate()">
+              <i data-lucide="plus" style="width:14px;height:14px"></i> Nova Oportunidade
+            </button>
+          </div>
+        </div>
+        <div id="pipeline-board" class="kanban-board" style="padding-top:0">
+          <div class="shimmer-loading" style="width:280px;height:400px;border-radius:var(--radius-lg)"></div>
+          <div class="shimmer-loading" style="width:280px;height:400px;border-radius:var(--radius-lg)"></div>
+          <div class="shimmer-loading" style="width:280px;height:400px;border-radius:var(--radius-lg)"></div>
+        </div>
+      </div>
+
+      <!-- ===== CONTACTS PAGE ===== -->
+      <div class="page" id="page-contacts">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Contatos</h1>
+            <p class="page-subtitle" id="contacts-count">Carregando...</p>
+          </div>
+          <div class="page-actions">
+            <div class="search-bar" style="width:240px">
+              <span class="search-icon"><i data-lucide="search"></i></span>
+              <input type="search" class="search-input" placeholder="Buscar contatos..." oninput="Contacts.search(this.value)">
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="Contacts.openCreate()">
+              <i data-lucide="user-plus" style="width:14px;height:14px"></i> Novo Contato
+            </button>
+          </div>
+        </div>
+        <div class="page-body page-body-flush">
+          <div class="data-table-wrap" style="padding:0 var(--space-6)">
+            <table class="data-table" id="contacts-table">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Email</th>
+                  <th>Telefone</th>
+                  <th>Empresa</th>
+                  <th>Status</th>
+                  <th>Score</th>
+                  <th>Criado em</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="contacts-tbody">
+                <tr><td colspan="8"><div class="shimmer-loading" style="height:200px;margin:var(--space-4)"></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-4) var(--space-6)">
+            <span id="contacts-pagination-info" style="font-size:var(--text-sm);color:var(--text-secondary)"></span>
+            <div class="pagination" id="contacts-pagination"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== COMPANIES PAGE ===== -->
+      <div class="page" id="page-companies">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Empresas</h1>
+            <p class="page-subtitle" id="companies-count">Carregando...</p>
+          </div>
+          <div class="page-actions">
+            <div class="search-bar" style="width:240px">
+              <span class="search-icon"><i data-lucide="search"></i></span>
+              <input type="search" class="search-input" placeholder="Buscar empresas..." oninput="Companies.search(this.value)">
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="Companies.openCreate()">
+              <i data-lucide="building-2" style="width:14px;height:14px"></i> Nova Empresa
+            </button>
+          </div>
+        </div>
+        <div class="page-body page-body-flush">
+          <div class="data-table-wrap" style="padding:0 var(--space-6)">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Empresa</th>
+                  <th>Setor</th>
+                  <th>Telefone</th>
+                  <th>Email</th>
+                  <th>Score</th>
+                  <th>Status</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="companies-tbody">
+                <tr><td colspan="7"><div class="shimmer-loading" style="height:200px;margin:var(--space-4)"></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div style="display:flex;justify-content:flex-end;padding:var(--space-4) var(--space-6)">
+            <div class="pagination" id="companies-pagination"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== TASKS PAGE ===== -->
+      <div class="page" id="page-tasks">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Tarefas</h1>
+            <p class="page-subtitle" id="tasks-count">Carregando...</p>
+          </div>
+          <div class="page-actions">
+            <div class="tabs" style="border:none">
+              <div class="tab active" onclick="Tasks.filterStatus('all')">Todas</div>
+              <div class="tab" onclick="Tasks.filterStatus('todo')">A fazer</div>
+              <div class="tab" onclick="Tasks.filterStatus('in_progress')">Em andamento</div>
+              <div class="tab" onclick="Tasks.filterStatus('done')">Concluídas</div>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="Tasks.openCreate()">
+              <i data-lucide="plus" style="width:14px;height:14px"></i> Nova Tarefa
+            </button>
+          </div>
+        </div>
+        <div class="page-body" id="tasks-body">
+          <div class="shimmer-loading" style="height:300px"></div>
+        </div>
+      </div>
+
+      <!-- ===== CALENDAR PAGE ===== -->
+      <div class="page" id="page-calendar">
+        <div class="page-header">
+          <h1 class="page-title">Calendário</h1>
+          <div class="page-actions">
+            <button class="btn btn-primary btn-sm" onclick="CalendarModule.openCreate()">
+              <i data-lucide="plus" style="width:14px;height:14px"></i> Novo Evento
+            </button>
+          </div>
+        </div>
+        <div class="page-body" style="height:calc(100vh - 140px)">
+          <div id="calendar-container" style="height:100%"></div>
+        </div>
+      </div>
+
+      <!-- ===== ACTIVITIES PAGE ===== -->
+      <div class="page" id="page-activities">
+        <div class="page-header">
+          <h1 class="page-title">Atividades</h1>
+          <div class="page-actions">
+            <button class="btn btn-primary btn-sm" onclick="Activities.openCreate()">
+              <i data-lucide="plus" style="width:14px;height:14px"></i> Nova Atividade
+            </button>
+          </div>
+        </div>
+        <div class="page-body">
+          <div class="timeline" id="activities-timeline">
+            <div class="shimmer-loading" style="height:300px"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== REPORTS PAGE ===== -->
+      <div class="page" id="page-reports">
+        <div class="page-header">
+          <h1 class="page-title">Relatórios</h1>
+          <div class="page-actions">
+            <button class="btn btn-secondary btn-sm" onclick="Reports.create()">
+              <i data-lucide="plus" style="width:14px;height:14px"></i> Novo Relatório
+            </button>
+          </div>
+        </div>
+        <div class="page-body" id="reports-body">
+          <div class="grid grid-2">
+            <div class="card">
+              <div class="card-header"><span style="font-weight:600">Conversão por Fonte</span></div>
+              <div class="card-body"><canvas id="chart-source" style="height:200px"></canvas></div>
+            </div>
+            <div class="card">
+              <div class="card-header"><span style="font-weight:600">Funil de Vendas</span></div>
+              <div class="card-body"><canvas id="chart-conversion" style="height:200px"></canvas></div>
+            </div>
+            <div class="card">
+              <div class="card-header"><span style="font-weight:600">Leads por Status</span></div>
+              <div class="card-body"><canvas id="chart-lead-status" style="height:200px"></canvas></div>
+            </div>
+            <div class="card">
+              <div class="card-header"><span style="font-weight:600">Atividades por Tipo</span></div>
+              <div class="card-body"><canvas id="chart-activities" style="height:200px"></canvas></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== AUTOMATIONS PAGE ===== -->
+      <div class="page" id="page-automations">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Automações</h1>
+            <p class="page-subtitle">Crie workflows inteligentes para sua equipe</p>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-primary btn-sm" onclick="Automations.openCreate()">
+              <i data-lucide="plus" style="width:14px;height:14px"></i> Nova Automação
+            </button>
+          </div>
+        </div>
+        <div class="page-body" id="automations-body">
+          <div class="shimmer-loading" style="height:300px"></div>
+        </div>
+      </div>
+
+      <!-- ===== INTEGRATIONS PAGE ===== -->
+      <div class="page" id="page-integrations">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Integrações</h1>
+            <p class="page-subtitle">Conecte as ferramentas que sua equipe já usa</p>
+          </div>
+        </div>
+        <div class="page-body" id="integrations-body">
+          <div class="shimmer-loading" style="height:300px"></div>
+        </div>
+      </div>
+
+      <!-- ===== SETTINGS PAGE ===== -->
+      <div class="page" id="page-settings">
+        <div class="page-header">
+          <h1 class="page-title">Configurações</h1>
+        </div>
+        <div class="page-body">
+          <div style="display:grid;grid-template-columns:220px 1fr;gap:var(--space-6);height:100%">
+            <!-- Settings nav -->
+            <div>
+              <nav style="display:flex;flex-direction:column;gap:2px">
+                <div class="nav-item active" onclick="Settings.show('profile')"><div class="nav-icon"><i data-lucide="user"></i></div><span>Perfil</span></div>
+                <div class="nav-item" onclick="Settings.show('organization')"><div class="nav-icon"><i data-lucide="building-2"></i></div><span>Organização</span></div>
+                <div class="nav-item" onclick="Settings.show('team')"><div class="nav-icon"><i data-lucide="users"></i></div><span>Equipe</span></div>
+                <div class="nav-item" onclick="Settings.show('roles')"><div class="nav-icon"><i data-lucide="shield"></i></div><span>Permissões</span></div>
+                <div class="nav-item" onclick="Settings.show('custom-fields')"><div class="nav-icon"><i data-lucide="sliders"></i></div><span>Campos Personalizados</span></div>
+                <div class="nav-item" onclick="Settings.show('appearance')"><div class="nav-icon"><i data-lucide="palette"></i></div><span>Aparência</span></div>
+                <div class="nav-item" onclick="Settings.show('notifications')"><div class="nav-icon"><i data-lucide="bell"></i></div><span>Notificações</span></div>
+                <div class="nav-item" onclick="Settings.show('api')"><div class="nav-icon"><i data-lucide="key"></i></div><span>API & Webhooks</span></div>
+                <div class="nav-item" onclick="Settings.show('billing')"><div class="nav-icon"><i data-lucide="credit-card"></i></div><span>Plano & Faturamento</span></div>
+              </nav>
+            </div>
+            <!-- Settings content -->
+            <div class="card" style="overflow-y:auto">
+              <div id="settings-content" class="card-body">
+                <div class="shimmer-loading" style="height:300px"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /page-content -->
+  </main><!-- /main-area -->
+
+</div><!-- /app -->
+
+<!-- ===== DETAIL PANEL ===== -->
+<div class="detail-panel" id="detail-panel">
+  <div class="modal-header">
+    <div>
+      <div class="modal-title" id="detail-title">-</div>
+      <div style="font-size:var(--text-xs);color:var(--text-tertiary)" id="detail-subtitle">-</div>
+    </div>
+    <button class="modal-close" onclick="CRM.closeDetail()">
+      <i data-lucide="x" style="width:20px;height:20px"></i>
+    </button>
+  </div>
+  <div class="tabs" style="padding:0 var(--space-6)" id="detail-tabs"></div>
+  <div style="flex:1;overflow-y:auto" id="detail-body"></div>
+</div>
+
+<!-- ===== MODAL SYSTEM ===== -->
+<div class="modal-overlay" id="modal-overlay" onclick="Modal.closeOnOverlay(event)">
+  <div class="modal" id="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title">Modal</div>
+      <button class="modal-close" onclick="Modal.close()">
+        <i data-lucide="x" style="width:20px;height:20px"></i>
+      </button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer" id="modal-footer" style="display:none"></div>
+  </div>
+</div>
+
+<!-- ===== GLOBAL SEARCH ===== -->
+<div class="global-search-panel" id="global-search-panel">
+  <div style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-4);border-bottom:1px solid var(--border-default)">
+    <i data-lucide="search" style="width:18px;height:18px;color:var(--text-tertiary)"></i>
+    <input type="text" id="global-search-input" placeholder="Buscar leads, contatos, empresas..." style="flex:1;background:transparent;border:none;outline:none;font-size:var(--text-md);color:var(--text-primary)" oninput="CRM.performSearch(this.value)" autofocus>
+    <kbd style="font-size:var(--text-xs);background:var(--bg-overlay);padding:2px 6px;border-radius:var(--radius-sm);color:var(--text-tertiary)">ESC</kbd>
+  </div>
+  <div id="search-results" style="overflow-y:auto;max-height:400px">
+    <div class="empty-state" style="padding:var(--space-6)">
+      <i data-lucide="search" style="width:24px;height:24px;color:var(--text-tertiary);margin-bottom:var(--space-2)"></i>
+      <p style="font-size:var(--text-sm);color:var(--text-secondary)">Digite para buscar...</p>
+    </div>
+  </div>
+</div>
+
+<!-- ===== AI FLOATING BUTTON ===== -->
+<button class="ai-fab" id="ai-fab" onclick="AI.toggle()" title="Assistente de IA" aria-label="Abrir assistente de IA">
+  <i data-lucide="brain" style="width:22px;height:22px"></i>
+</button>
+
+<!-- ===== AI PANEL ===== -->
+<div class="ai-panel" id="ai-panel">
+  <div class="ai-panel-header">
+    <div class="ai-avatar"><i data-lucide="brain"></i></div>
+    <div>
+      <div class="ai-panel-title">Assistente CRM Pro</div>
+      <div class="ai-panel-sub" id="ai-status">● Online</div>
+    </div>
+    <button class="btn btn-ghost btn-icon btn-xs" onclick="AI.toggle()" style="margin-left:auto">
+      <i data-lucide="x" style="width:16px;height:16px"></i>
+    </button>
+  </div>
+
+  <div class="ai-messages" id="ai-messages">
+    <div class="ai-message assistant">
+      <div class="ai-avatar" style="width:28px;height:28px;flex-shrink:0"><i data-lucide="brain" style="width:14px;height:14px"></i></div>
+      <div class="ai-bubble">
+        Olá! Sou seu assistente de IA. Posso ajudar com análise de leads, geração de propostas, resumos de reuniões e muito mais. Como posso ajudar?
+      </div>
+    </div>
+  </div>
+
+  <div class="ai-quick-actions" id="ai-quick-actions">
+    <button class="ai-quick-btn" onclick="AI.quickAction('summarize-leads')">📊 Resumir leads</button>
+    <button class="ai-quick-btn" onclick="AI.quickAction('top-opportunities')">🎯 Top oportunidades</button>
+    <button class="ai-quick-btn" onclick="AI.quickAction('tasks-today')">✅ Tarefas hoje</button>
+    <button class="ai-quick-btn" onclick="AI.quickAction('generate-proposal')">📄 Gerar proposta</button>
+  </div>
+
+  <div class="ai-input-area">
+    <div class="ai-input-wrap">
+      <textarea class="ai-textarea" id="ai-input" placeholder="Pergunte sobre seus dados..." rows="1"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();AI.send()}"
+        oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+      <button class="btn btn-primary btn-xs" onclick="AI.send()" id="ai-send-btn">
+        <i data-lucide="send" style="width:14px;height:14px"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== TOAST CONTAINER ===== -->
+<div class="toast-container" id="toast-container" aria-live="polite" aria-atomic="false"></div>
+
+<!-- ===== MOBILE OVERLAY ===== -->
+<div id="mobile-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:calc(var(--z-sidebar)-1)" onclick="CRM.closeMobileMenu()"></div>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script type="module" src="./frontend/js/core/app.js"></script>
+
+</body>
+</html>
